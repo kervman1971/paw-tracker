@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Geddy's Daily Tracker 🐾</title>
+  <link rel="apple-touch-icon" href="icon.png">
+  <link rel="icon" type="image/png" href="icon.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Geddy 🐾">
+  <meta name="theme-color" content="#FF6B35">
+  <meta name="description" content="Daily tracker for Geddy's meals, calories, walks, grooming, care, weight, and vet info with real-time family sync.">
+  
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=DM+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  
+  <!-- Canvas Confetti CDN for celebratory animations -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <!-- Realtime Sync Banner -->
+  <div class="sync-banner connecting" id="syncBanner" role="status">
+    <div class="sync-dot"></div>
+    <span id="syncText">Connecting to Firebase...</span>
+  </div>
+
+  <!-- Main Header -->
+  <header class="header">
+    <div class="header-top">
+      <div class="dog-identity">
+        <div class="paw-circle" id="pawAvatar" title="Geddy!">🐾</div>
+        <div>
+          <h1 class="dog-name">Geddy</h1>
+          <div class="dog-stats" id="headerStats">17.2 lb · BCS 6.5/9 · 324 kcal/day</div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="date-badge" id="dateBadge">Today</div>
+      </div>
+    </div>
+    
+    <!-- Family Member Selector -->
+    <div class="who-bar" role="radiogroup" aria-label="Select active user">
+      <span class="who-label">Caregiver:</span>
+      <button class="who-btn active" data-who="Kevin" data-color="#FF6B35">
+        <span class="who-avatar" style="background:#FF6B35">K</span> Kevin
+      </button>
+      <button class="who-btn" data-who="Jessica" data-color="#EC4899">
+        <span class="who-avatar" style="background:#EC4899">J</span> Jessica
+      </button>
+      <button class="who-btn" data-who="Zoe" data-color="#8B5CF6">
+        <span class="who-avatar" style="background:#8B5CF6">Z</span> Zoe
+      </button>
+      <button class="who-btn" data-who="Adam" data-color="#3B82F6">
+        <span class="who-avatar" style="background:#3B82F6">A</span> Adam
+      </button>
+    </div>
+  </header>
+
+  <!-- Sticky Navigation Tabs -->
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="today" role="tab" id="tab-today-btn" aria-controls="today" aria-selected="true">
+      🗓 Daily Tracker
+    </button>
+    <button class="tab" data-tab="grooming" role="tab" id="tab-grooming-btn" aria-controls="grooming" aria-selected="false">
+      🛁 Grooming & Care
+    </button>
+    <button class="tab" data-tab="log" role="tab" id="tab-log-btn" aria-controls="log" aria-selected="false">
+      📋 Activity Log
+    </button>
+    <button class="tab" data-tab="info" role="tab" id="tab-info-btn" aria-controls="info" aria-selected="false">
+      🐶 Profile & Health
+    </button>
+  </nav>
+
+  <!-- App Content Area -->
+  <main class="content">
+
+    <!-- TODAY TAB PANEL -->
+    <section id="today" class="tab-panel active" role="tabpanel" aria-labelledby="tab-today-btn">
+      
+      <!-- Summary Bar Cards -->
+      <div class="summary-bar">
+        <div class="summary-card" id="sum-meals">
+          <span class="summary-icon">🍽️</span>
+          <span class="summary-label">Meals</span>
+          <span class="summary-badge" id="sum-meals-badge">0</span>
+        </div>
+        <div class="summary-card" id="sum-walk">
+          <span class="summary-icon">🦮</span>
+          <span class="summary-label">Walks</span>
+          <span class="summary-badge" id="sum-walk-badge">0</span>
+        </div>
+        <div class="summary-card" id="sum-poo">
+          <span class="summary-icon">💩</span>
+          <span class="summary-label">Poos</span>
+          <span class="summary-badge" id="sum-poo-badge">0</span>
+        </div>
+        <div class="summary-card" id="sum-pill">
+          <span class="summary-icon">💊</span>
+          <span class="summary-label">Pill</span>
+          <span class="summary-badge" id="sum-pill-badge">✓</span>
+        </div>
+      </div>
+
+      <!-- Calorie Tracker Card -->
+      <div class="cal-card">
+        <div class="cal-top">
+          <div class="cal-title">🔥 Daily Calorie Tracker</div>
+          <div class="cal-numbers" id="calNum">0 <span>/ 324 kcal</span></div>
+        </div>
+        <div class="track" aria-label="Calorie progress">
+          <div class="fill" id="calFill" style="width:0%"></div>
+        </div>
+        <div class="cal-footer">
+          <div class="cal-note" id="calNote">Tap meal items below to log calories</div>
+          <button class="quick-add-treat-btn" id="openTreatModalBtn">+ Quick Treat</button>
+        </div>
+      </div>
+
+      <!-- Morning Meal Section -->
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">☀️ Morning Meal</div>
+          <div class="meal-tag" id="morningMealTag">~162 kcal target</div>
+          <button class="edit-food-btn" data-meal="morning" aria-label="Edit morning meal items">✏️ Customize</button>
+        </div>
+        <div class="edit-panel" id="edit-morning">
+          <div class="edit-panel-title">Edit Morning Menu Items</div>
+          <div id="edit-morning-items"></div>
+          <div class="edit-panel-actions">
+            <button class="add-food-item-btn" data-meal="morning">+ Add Menu Item</button>
+            <button class="save-food-btn" data-meal="morning">💾 Save Menu</button>
+          </div>
+        </div>
+        <div id="checklist-morning" class="checklist-container"></div>
+      </div>
+
+      <!-- Evening Meal Section -->
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">🌙 Evening Meal</div>
+          <div class="meal-tag" id="eveningMealTag">~162 kcal target</div>
+          <button class="edit-food-btn" data-meal="evening" aria-label="Edit evening meal items">✏️ Customize</button>
+        </div>
+        <div class="edit-panel" id="edit-evening">
+          <div class="edit-panel-title">Edit Evening Menu Items</div>
+          <div id="edit-evening-items"></div>
+          <div class="edit-panel-actions">
+            <button class="add-food-item-btn" data-meal="evening">+ Add Menu Item</button>
+            <button class="save-food-btn" data-meal="evening">💾 Save Menu</button>
+          </div>
+        </div>
+        <div id="checklist-evening" class="checklist-container"></div>
+      </div>
+
+      <!-- Daily Routine Care Section -->
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">💚 Daily Care & Activities</div>
+        </div>
+
+        <div class="activity-block">
+          <div class="activity-header">
+            <div class="activity-info">
+              <span class="activity-icon">🦮</span>
+              <div>
+                <span class="activity-name">Walks</span>
+                <span class="activity-sub">Outdoor exercise</span>
+              </div>
+              <span class="activity-count" id="count-walk">0 today</span>
+            </div>
+            <button class="add-activity-btn" data-type="walk" data-label="Walk">+ Log Walk</button>
+          </div>
+          <div class="activity-entries" id="entries-walk"></div>
+        </div>
+
+        <div class="activity-block">
+          <div class="activity-header">
+            <div class="activity-info">
+              <span class="activity-icon">💩</span>
+              <div>
+                <span class="activity-name">Poos</span>
+                <span class="activity-sub">Potty break</span>
+              </div>
+              <span class="activity-count" id="count-poo">0 today</span>
+            </div>
+            <button class="add-activity-btn" data-type="poo" data-label="Poo">+ Log Poo</button>
+          </div>
+          <div class="activity-entries" id="entries-poo"></div>
+        </div>
+
+        <div class="activity-block">
+          <div class="activity-header">
+            <div class="activity-info">
+              <span class="activity-icon">💧</span>
+              <div>
+                <span class="activity-name">Water Refills</span>
+                <span class="activity-sub">Fresh bowl</span>
+              </div>
+              <span class="activity-count" id="count-water">0 today</span>
+            </div>
+            <button class="add-activity-btn" data-type="water" data-label="Water Refill">+ Log Water</button>
+          </div>
+          <div class="activity-entries" id="entries-water"></div>
+        </div>
+
+        <div class="activity-block">
+          <div class="activity-header">
+            <div class="activity-info">
+              <span class="activity-icon">🎾</span>
+              <div>
+                <span class="activity-name">Playtime</span>
+                <span class="activity-sub">Fetch & games</span>
+              </div>
+              <span class="activity-count" id="count-play">0 today</span>
+            </div>
+            <button class="add-activity-btn" data-type="play" data-label="Playtime">+ Log Play</button>
+          </div>
+          <div class="activity-entries" id="entries-play"></div>
+        </div>
+
+      </div>
+
+      <!-- Bottom Progress Bar & Reset -->
+      <div class="progress-footer">
+        <span class="progress-text" id="progressText">0 of 0 completed today</span>
+        <button class="reset-btn" id="resetBtn">🔄 Reset Today's Checks</button>
+      </div>
+
+    </section>
+
+    <!-- GROOMING & CARE TAB PANEL -->
+    <section id="grooming" class="tab-panel" role="tabpanel" aria-labelledby="tab-grooming-btn">
+      <div class="grooming-hero">
+        <div class="hero-icon">🧼</div>
+        <div>
+          <h2>Geddy's Grooming & Hygiene</h2>
+          <p>Track routine coat care, dental hygiene, baths, nail trims, and parasite preventatives.</p>
+        </div>
+      </div>
+
+      <!-- Daily Grooming Checklist -->
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">✨ Daily Hygiene Routine</div>
+        </div>
+        <div id="checklist-grooming-daily" class="checklist-container"></div>
+      </div>
+
+      <!-- Weekly & Monthly Care Log -->
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">🗓 Weekly & Monthly Care Log</div>
+        </div>
+
+        <div class="grooming-care-card">
+          <div class="care-card-header">
+            <div class="care-card-title">
+              <span class="care-icon">🪮</span>
+              <div>
+                <h3>Coat Brushing</h3>
+                <div class="care-meta" id="last-brush-meta">Never logged</div>
+              </div>
+            </div>
+            <button class="log-grooming-btn" data-type="brush" data-label="Coat Brushing">Log Brushing</button>
+          </div>
+          <div class="grooming-history-list" id="history-brush"></div>
+        </div>
+
+        <div class="grooming-care-card">
+          <div class="care-card-header">
+            <div class="care-card-title">
+              <span class="care-icon">🛁</span>
+              <div>
+                <h3>Bath Time</h3>
+                <div class="care-meta" id="last-bath-meta">Never logged</div>
+              </div>
+            </div>
+            <button class="log-grooming-btn" data-type="bath" data-label="Bath Time">Log Bath</button>
+          </div>
+          <div class="grooming-history-list" id="history-bath"></div>
+        </div>
+
+        <div class="grooming-care-card">
+          <div class="care-card-header">
+            <div class="care-card-title">
+              <span class="care-icon">✂️</span>
+              <div>
+                <h3>Nail Trim</h3>
+                <div class="care-meta" id="last-nails-meta">Never logged</div>
+              </div>
+            </div>
+            <button class="log-grooming-btn" data-type="nails" data-label="Nail Trim">Log Nail Trim</button>
+          </div>
+          <div class="grooming-history-list" id="history-nails"></div>
+        </div>
+
+        <div class="grooming-care-card">
+          <div class="care-card-header">
+            <div class="care-card-title">
+              <span class="care-icon">🪲</span>
+              <div>
+                <h3>Flea & Tick Treatment</h3>
+                <div class="care-meta" id="last-fleatick-meta">Never logged</div>
+              </div>
+            </div>
+            <button class="log-grooming-btn" data-type="fleatick" data-label="Flea & Tick Treatment">Log Treatment</button>
+          </div>
+          <div class="grooming-history-list" id="history-fleatick"></div>
+        </div>
+
+        <div class="grooming-care-card">
+          <div class="care-card-header">
+            <div class="care-card-title">
+              <span class="care-icon">👂</span>
+              <div>
+                <h3>Ear Cleaning</h3>
+                <div class="care-meta" id="last-ears-meta">Never logged</div>
+              </div>
+            </div>
+            <button class="log-grooming-btn" data-type="ears" data-label="Ear Cleaning">Log Ear Cleaning</button>
+          </div>
+          <div class="grooming-history-list" id="history-ears"></div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- LOG TAB PANEL -->
+    <section id="log" class="tab-panel" role="tabpanel" aria-labelledby="tab-log-btn">
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">✏️ Add A Quick Note</div>
+        </div>
+        <div class="note-row">
+          <input type="text" id="noteInput" placeholder="e.g. Energy level high, enjoyed sunny walk..." />
+          <button id="addNoteBtn">Post Note</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">📋 Live Family Activity Log</div>
+          <div class="log-filter-bar">
+            <select id="logFilterPerson">
+              <option value="all">All Caregivers</option>
+              <option value="Kevin">Kevin</option>
+              <option value="Jessica">Jessica</option>
+              <option value="Zoe">Zoe</option>
+              <option value="Adam">Adam</option>
+            </select>
+          </div>
+        </div>
+        <div id="logList" class="log-feed">
+          <div class="empty-log">🐾 No activity logged today yet!</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- GEDDY INFO & HEALTH TAB PANEL -->
+    <section id="info" class="tab-panel" role="tabpanel" aria-labelledby="tab-info-btn">
+      
+      <!-- Key Stats Grid -->
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-icon">⚖️</div>
+          <div class="stat-num" id="currentWeightDisplay">17.2</div>
+          <div class="stat-lbl">lbs (Current)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📊</div>
+          <div class="stat-num">6.5</div>
+          <div class="stat-lbl">BCS / 9</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🔥</div>
+          <div class="stat-num">324</div>
+          <div class="stat-lbl">kcal / day</div>
+        </div>
+      </div>
+
+      <!-- Weight History Section -->
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">⚖️ Weight History & Chart</div>
+        </div>
+        
+        <div class="weight-input-card">
+          <div class="weight-input-row">
+            <div>
+              <label class="field-label" for="weightInput">Weight (lbs)</label>
+              <input type="number" id="weightInput" step="0.1" min="0" max="200" placeholder="e.g. 17.0" />
+            </div>
+            <div>
+              <label class="field-label" for="weightDate">Date</label>
+              <input type="date" id="weightDate" />
+            </div>
+            <div>
+              <label class="field-label" for="weightNote">Note (optional)</label>
+              <input type="text" id="weightNote" placeholder="e.g. Vet checkup" />
+            </div>
+          </div>
+          <button class="weight-save-btn" id="saveWeightBtn">💾 Save Weight Entry</button>
+        </div>
+
+        <div id="weightChartWrap" style="display:none;" class="chart-wrap">
+          <div class="chart-title-row">
+            <span>Weight History Trend</span>
+            <span class="chart-subtitle" id="weightTrendSubtitle">Stable</span>
+          </div>
+          <svg id="weightChart" class="chart-svg" height="130"></svg>
+        </div>
+
+        <div id="weightHistoryList"></div>
+      </div>
+
+      <!-- Vet Prescription & Profile Info -->
+      <div class="section">
+        <div class="section-head">
+          <div class="section-title">🏥 Veterinary Info & Prescription</div>
+          <button class="export-vet-btn" id="exportVetBtn">📄 Export Vet Report</button>
+        </div>
+        <div class="info-card">
+          <div class="info-row">
+            <span class="info-key">Veterinarian</span>
+            <span class="info-val">Dr. Cybulski</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">Last Visit</span>
+            <span class="info-val">Dec 9, 2025</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">Daily Calorie Target</span>
+            <span class="info-val">324 kcal / day</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">Meal Split</span>
+            <span class="info-val">162 kcal × 2 meals</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">Prescription Diet</span>
+            <span class="info-val">Royal Canin</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">Daily Allergy Medication</span>
+            <span class="info-val">Allergy Pill (Give with morning meal)</span>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Quick Treat Modal Dialog -->
+  <dialog id="treatModal" class="app-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>🍖 Add Quick Treat</h3>
+        <button id="closeTreatModalBtn" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <label for="treatNameInput">Treat Description</label>
+        <input type="text" id="treatNameInput" placeholder="e.g. Peanut butter lick, Training bite..." />
+        
+        <label for="treatKcalInput" style="margin-top: 10px;">Calories (kcal)</label>
+        <input type="number" id="treatKcalInput" placeholder="e.g. 15" min="1" max="200" value="15" />
+      </div>
+      <div class="modal-footer">
+        <button id="saveTreatBtn" class="primary-modal-btn">Add Treat & Log Calories</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Vet Report Modal Dialog -->
+  <dialog id="vetReportModal" class="app-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>📋 Vet Summary Report</h3>
+        <button id="closeVetModalBtn" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <textarea id="vetReportText" readonly class="vet-report-area"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button id="copyVetReportBtn" class="primary-modal-btn">📋 Copy Report to Clipboard</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Application Logic JS Module -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>
